@@ -32,7 +32,7 @@ void setup() {
 
 void loop() {
   Serial.begin(9600);
-  Serial.println("Enter the sequence (e.g., 0 1): ");
+  Serial.println("Play the keys: ");
   while (Serial.available() < sequenceNotes) {}
   for (int i = 0; i < sequenceNotes; i++) {
     userInput[i] = Serial.parseInt();

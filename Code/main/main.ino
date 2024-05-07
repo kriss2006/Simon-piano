@@ -52,7 +52,7 @@ void loop() {
   if (isCorrect) {
     Serial.println("Congratulations!");
     streak++;
-    points += streak;
+    points += (streak + 1) * 100;
     level++;
     Serial.print("Points: ");
     Serial.println(points);

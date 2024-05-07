@@ -17,6 +17,9 @@ int sequenceNotes;
 int sequence[10];
 int userInput[10];
 
+int points = 0;
+int streak = 0;
+
 void setup() {
   for (int i = 0; i < octavesCount; i++) {
     for (int j = 0; j < notesPerOctave; j++) {
@@ -48,11 +51,16 @@ void loop() {
 
   if (isCorrect) {
     Serial.println("Congratulations!");
+    streak++;
+    points += streak;
     level++;
+    Serial.print("Points: ");
+    Serial.println(points);
     generateSequence();
     playSequence();
   } else {
     Serial.println("Wrong sequence. Try again.");
+    streak = 0;
   }
 
   delay(2000);

@@ -1,94 +1,174 @@
-const int octavesCount = 2;
-const int notesPerOctave = 7;
-const int speakerPin = 52;
+// // const int outputPins[] = {35, 37, 39, 41, 43, 45, 47, 49, 51, 53};
+// // const int inputPins[] = {34, 36, 38, 40, 42, 44, 46, 48, 50, 52};
+const int inputPins[] = {24, 26, 28, 30, 32, 34, 36, 38, 40};
+const int outputPins[] = {25, 27, 29, 31, 33, 35, 37, 39, 41};
 
-int notePins[octavesCount][notesPerOctave] = {
-  {53, 51, 49, 47, 45, 43, 31},
-  {35, 33, 31, 29, 27, 25, 23}
+const int buzzerPin = 7;
+
+const int n_pins = 9;
+
+const int notes[] = {
+  // 262, // C4
+  294, // D4
+  330, // E4
+  349, // F4
+  392, // G4
+  440, // A4
+  494, // B4
+  523, // C5
+  587, // D5
+  659  // E5
 };
-
-float frequencies[octavesCount][notesPerOctave] = {
-  {130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94},
-  {261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88}
-};
-
-int level = 1;
-int sequenceNotes;
-int sequence[10];
-int userInput[10];
-
-int points = 0;
-int streak = 0;
 
 void setup() {
-  for (int i = 0; i < octavesCount; i++) {
-    for (int j = 0; j < notesPerOctave; j++) {
-      pinMode(notePins[i][j], INPUT);
-    }
+  Serial.begin(9600);
+  for (int i = 0; i < n_pins; i++) {
+    pinMode(outputPins[i], OUTPUT);
+    pinMode(inputPins[i], INPUT);
   }
-
-  pinMode(speakerPin, OUTPUT);
-
-  generateSequence();
-  playSequence();
+  pinMode(buzzerPin, OUTPUT);
+  randomSeed(analogRead(0));
 }
 
 void loop() {
-  Serial.begin(9600);
-  Serial.println("Play the keys: ");
-  while (Serial.available() < sequenceNotes) {}
-  for (int i = 0; i < sequenceNotes; i++) {
-    userInput[i] = Serial.parseInt();
-  }
-
-  bool isCorrect = true;
-  for (int i = 0; i < sequenceNotes; i++) {
-    if (userInput[i] != sequence[i]) {
-      isCorrect = false;
-      break;
+  int level = 1;
+  while (level <= 10) {
+    if (!playLevel(level)) {
+      playLostSound();
+      resetGame();
+      return;
     }
-  }
-
-  if (isCorrect) {
-    Serial.println("Congratulations!");
-    streak++;
-    points += (streak + 1) * 100;
     level++;
-    Serial.print("Points: ");
-    Serial.println(points);
-    generateSequence();
-    playSequence();
-  } else {
-    Serial.println("Wrong sequence. Try again.");
-    streak = 0;
   }
-
-  delay(2000);
+  playWinGameSound();
+  resetGame();
 }
 
-void generateSequence() {
-  sequenceNotes = level + 1;
-  randomSeed(analogRead(0));
-  for (int i = 0; i < sequenceNotes; i++) {
-    sequence[i] = random(7, octavesCount * notesPerOctave);
+bool playLevel(int level) {
+  int sequence[level];
+  for (int i = 0; i < level; i++) {
+    sequence[i] = random(0, n_pins);
   }
-}
 
-void playSequence() {
-  for (int i = 0; i < sequenceNotes; i++) {
-    playNote(sequence[i]);
-    delay(1000);
-    stopNote();
+  for (int i = 0; i < level; i++) {
+    digitalWrite(outputPins[sequence[i]], HIGH);
+    tone(buzzerPin, notes[sequence[i]], 500);
+
+    Serial.print("Output: pin ");
+    // Serial.println(outputPins[sequence[i]]);
+    Serial.println(sequence[i] + 1);
+    delay(500);
+    digitalWrite(outputPins[sequence[i]], LOW);
     delay(500);
   }
+
+  for (int i = 0; i < level; i++) {
+    int expectedInput = inputPins[sequence[i]];
+    int expectedNote = sequence[i] + 1;
+    while (digitalRead(expectedInput) == LOW) {}
+    delay(50);
+    tone(buzzerPin, notes[sequence[i]], 500);
+    digitalWrite(outputPins[sequence[i]], HIGH);
+    Serial.print("Input: pin ");
+    Serial.println(expectedNote);
+    delay(500);
+    digitalWrite(outputPins[sequence[i]], LOW);
+  }
+
+  indicateSuccess(level);
+  Serial.print("Level ");
+  Serial.print(level);
+  Serial.println(" completed");
+  return true;
 }
 
-void playNote(int noteIndex) {
-  for (int i = 0; i < octavesCount; i++) {
-    tone(speakerPin, frequencies[i][noteIndex]);
+void indicateSuccess(int level) {
+  for (int i = 0; i < level && i < n_pins; i++) {
+    digitalWrite(outputPins[i * 2], HIGH);
+  }
+  playWinLevelSound();
+  delay(2000);
+  for (int i = 0; i < level && i < n_pins; i++) {
+    digitalWrite(outputPins[i * 2], LOW);
   }
 }
 
-void stopNote() {
-  noTone(speakerPin);
+void playWinLevelSound() {
+  tone(buzzerPin, 523, 200);  // C5
+  delay(200);
+  tone(buzzerPin, 659, 200);  // E5
+  delay(200);
+  tone(buzzerPin, 784, 200);  // G5
+  delay(200);
 }
+
+void playWinGameSound() {
+  tone(buzzerPin, 784, 300);  // G5
+  delay(300);
+  tone(buzzerPin, 880, 300);  // A5
+  delay(300);
+  tone(buzzerPin, 988, 300);  // B5
+  delay(300);
+  tone(buzzerPin, 1047, 600); // C6
+  delay(600);
+  Serial.println("Game won");
+}
+
+void playLostSound() {
+  tone(buzzerPin, 220, 500);  // A3
+  delay(500);
+  tone(buzzerPin, 220, 500);  // A3
+  delay(500);
+  Serial.println("Game lost");
+}
+
+void resetGame() {
+  for (int i = 0; i < n_pins; i++) {
+    digitalWrite(outputPins[i], LOW);
+  }
+  Serial.println("Game reset");
+}
+
+///////////////
+//////////////
+////////////
+
+// const int notes[] = {
+//   262, // C4
+//   294, // D4
+//   330, // E4
+//   349, // F4
+//   392, // G4
+//   440, // A4
+//   494, // B4
+//   523, // C5
+//   587, // D5
+//   659  // E5
+// };
+
+// void setup() {
+//   Serial.begin(9600);
+//   for (int i = 0; i < n_pins; i++) {
+//     pinMode(outputPins[i], OUTPUT);
+//     pinMode(inputPins[i], INPUT);
+//   }
+//   pinMode(buzzerPin, OUTPUT);
+// }
+
+// void loop() {
+//   for (int i = 0; i < n_pins; i++) {
+//     if (digitalRead(inputPins[i]) == HIGH) {
+//       digitalWrite(outputPins[i], HIGH);
+//       tone(buzzerPin, notes[i], 500);
+//       Serial.print("Input: pin ");
+//       // Serial.println(inputPins[i]);
+//       Serial.println(i + 1);
+//       Serial.print("Output: pin ");
+//       // Serial.println(outputPins[i]);
+//       Serial.println(i + 1);
+//       delay(500);
+//       digitalWrite(outputPins[i], LOW);
+//       delay(500);
+//     }
+//   }
+// }
